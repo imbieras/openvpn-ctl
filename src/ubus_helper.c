@@ -1,5 +1,6 @@
 #include "ubus_helper.h"
 #include "helper.h"
+#include <arpa/inet.h>
 #include <libubox/blobmsg_json.h>
 #include <libubus.h>
 #include <pthread.h>
@@ -14,10 +15,23 @@ struct client clients[CLIENT_COUNT_MAX];
 int num_clients = 0;
 extern pthread_mutex_t mutex;
 extern bool stop_loop;
+extern int sockfd;
+
+static int collect_garbage() {
+  char buffer[1024];
+  int bytes;
+  int bytes_collected = 0;
+  while ((bytes = recv(sockfd, buffer, sizeof(buffer) - 1, MSG_DONTWAIT)) > 0) {
+    bytes_collected += bytes;
+  }
+  return bytes_collected;
+}
 
 void *fetch_data_thread(void *arg) {
   while (!stop_loop) {
     pthread_testcancel();
+
+    collect_garbage();
 
     send_text("status\n");
 
